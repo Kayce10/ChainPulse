@@ -659,6 +659,73 @@ dependencies = [
 ]
 
 [[package]]
+name = "chainpulse-backend"
+version = "0.2.0"
+dependencies = [
+ "aes-gcm",
+ "anyhow",
+ "argon2",
+ "async-graphql",
+ "async-graphql-axum",
+ "async-lock",
+ "async-trait",
+ "axum",
+ "base64 0.22.1",
+ "chrono",
+ "criterion",
+ "csv",
+ "dashmap",
+ "data-encoding",
+ "dotenvy",
+ "failsafe",
+ "futures",
+ "hex",
+ "hmac 0.13.0",
+ "http-body-util",
+ "ipnetwork",
+ "jsonwebtoken",
+ "lazy_static",
+ "lettre",
+ "log",
+ "ndarray",
+ "opentelemetry",
+ "opentelemetry-otlp",
+ "opentelemetry_sdk",
+ "prometheus",
+ "rand 0.10.2",
+ "redis",
+ "reqwest",
+ "rust_decimal",
+ "rust_xlsxwriter",
+ "serde",
+ "serde_json",
+ "sha2 0.11.0",
+ "sqlx",
+ "stellar-xdr",
+ "stellar_sdk",
+ "tempfile",
+ "thiserror 2.0.18",
+ "tokio",
+ "tokio-retry",
+ "tokio-tungstenite 0.30.0",
+ "toml 1.1.2+spec-1.1.0",
+ "tower 0.4.13",
+ "tower-http 0.7.0",
+ "tracing",
+ "tracing-appender",
+ "tracing-log",
+ "tracing-logstash",
+ "tracing-opentelemetry",
+ "tracing-subscriber",
+ "url",
+ "urlencoding",
+ "utoipa",
+ "utoipa-swagger-ui",
+ "uuid",
+ "validator",
+]
+
+[[package]]
 name = "chrono"
 version = "0.4.45"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4189,73 +4256,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "stellar-insights-backend"
-version = "0.1.0"
-dependencies = [
- "aes-gcm",
- "anyhow",
- "argon2",
- "async-graphql",
- "async-graphql-axum",
- "async-lock",
- "async-trait",
- "axum",
- "base64 0.22.1",
- "chrono",
- "criterion",
- "csv",
- "dashmap",
- "data-encoding",
- "dotenvy",
- "failsafe",
- "futures",
- "hex",
- "hmac 0.13.0",
- "http-body-util",
- "ipnetwork",
- "jsonwebtoken",
- "lazy_static",
- "lettre",
- "log",
- "ndarray",
- "opentelemetry",
- "opentelemetry-otlp",
- "opentelemetry_sdk",
- "prometheus",
- "rand 0.10.2",
- "redis",
- "reqwest",
- "rust_decimal",
- "rust_xlsxwriter",
- "serde",
- "serde_json",
- "sha2 0.11.0",
- "sqlx",
- "stellar-xdr",
- "stellar_sdk",
- "tempfile",
- "thiserror 2.0.18",
- "tokio",
- "tokio-retry",
- "tokio-tungstenite 0.30.0",
- "toml 1.1.2+spec-1.1.0",
- "tower 0.4.13",
- "tower-http 0.7.0",
- "tracing",
- "tracing-appender",
- "tracing-log",
- "tracing-logstash",
- "tracing-opentelemetry",
- "tracing-subscriber",
- "url",
- "urlencoding",
- "utoipa",
- "utoipa-swagger-ui",
- "uuid",
- "validator",
-]
-
-[[package]]
 name = "stellar-strkey"
 version = "0.0.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4439,7 +4439,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32497e9a4c7b38532efcdebeef879707aa9f794296a4f0244f6f69e9bc8574bd"
 dependencies = [
  "fastrand",
- "getrandom 0.3.4",
+ "getrandom 0.4.2",
  "once_cell",
  "rustix",
  "windows-sys 0.61.2",
@@ -5119,9 +5119,9 @@ dependencies = [
 
 [[package]]
 name = "uuid"
-version = "1.23.4"
+version = "1.24.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bf80a72845275afea99e7f2b434723d3bc7e38470fcd1c7ed39a599c73319a53"
+checksum = "bf3923a6f5c4c6382e0b653c4117f48d631ea17f38ed86e2a828e6f7412f5239"
 dependencies = [
  "getrandom 0.4.2",
  "js-sys",
