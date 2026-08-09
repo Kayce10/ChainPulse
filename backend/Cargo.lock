@@ -459,6 +459,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "72b3254f16251a8381aa12e40e3c4d2f0199f8c6508fbecb9d91f575e0fbb8c6"
 
 [[package]]
+name = "base64"
+version = "0.23.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ac07cdecf99051d9a5238b80f35af32cdeba5b336e55d957b318b50137e18da5"
+
+[[package]]
 name = "base64ct"
 version = "1.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -656,6 +662,73 @@ dependencies = [
  "cfg-if",
  "cpufeatures 0.3.0",
  "rand_core 0.10.1",
+]
+
+[[package]]
+name = "chainpulse-backend"
+version = "0.2.0"
+dependencies = [
+ "aes-gcm",
+ "anyhow",
+ "argon2",
+ "async-graphql",
+ "async-graphql-axum",
+ "async-lock",
+ "async-trait",
+ "axum",
+ "base64 0.23.1",
+ "chrono",
+ "criterion",
+ "csv",
+ "dashmap",
+ "data-encoding",
+ "dotenvy",
+ "failsafe",
+ "futures",
+ "hex",
+ "hmac 0.13.0",
+ "http-body-util",
+ "ipnetwork",
+ "jsonwebtoken",
+ "lazy_static",
+ "lettre",
+ "log",
+ "ndarray",
+ "opentelemetry",
+ "opentelemetry-otlp",
+ "opentelemetry_sdk",
+ "prometheus",
+ "rand 0.10.2",
+ "redis",
+ "reqwest",
+ "rust_decimal",
+ "rust_xlsxwriter",
+ "serde",
+ "serde_json",
+ "sha2 0.11.0",
+ "sqlx",
+ "stellar-xdr",
+ "stellar_sdk",
+ "tempfile",
+ "thiserror 2.0.18",
+ "tokio",
+ "tokio-retry",
+ "tokio-tungstenite 0.30.0",
+ "toml 1.1.2+spec-1.1.0",
+ "tower 0.4.13",
+ "tower-http 0.7.0",
+ "tracing",
+ "tracing-appender",
+ "tracing-log",
+ "tracing-logstash",
+ "tracing-opentelemetry",
+ "tracing-subscriber",
+ "url",
+ "urlencoding",
+ "utoipa",
+ "utoipa-swagger-ui",
+ "uuid",
+ "validator",
 ]
 
 [[package]]
@@ -4189,73 +4262,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "stellar-insights-backend"
-version = "0.1.0"
-dependencies = [
- "aes-gcm",
- "anyhow",
- "argon2",
- "async-graphql",
- "async-graphql-axum",
- "async-lock",
- "async-trait",
- "axum",
- "base64 0.22.1",
- "chrono",
- "criterion",
- "csv",
- "dashmap",
- "data-encoding",
- "dotenvy",
- "failsafe",
- "futures",
- "hex",
- "hmac 0.13.0",
- "http-body-util",
- "ipnetwork",
- "jsonwebtoken",
- "lazy_static",
- "lettre",
- "log",
- "ndarray",
- "opentelemetry",
- "opentelemetry-otlp",
- "opentelemetry_sdk",
- "prometheus",
- "rand 0.10.2",
- "redis",
- "reqwest",
- "rust_decimal",
- "rust_xlsxwriter",
- "serde",
- "serde_json",
- "sha2 0.11.0",
- "sqlx",
- "stellar-xdr",
- "stellar_sdk",
- "tempfile",
- "thiserror 2.0.18",
- "tokio",
- "tokio-retry",
- "tokio-tungstenite 0.30.0",
- "toml 1.1.2+spec-1.1.0",
- "tower 0.4.13",
- "tower-http 0.7.0",
- "tracing",
- "tracing-appender",
- "tracing-log",
- "tracing-logstash",
- "tracing-opentelemetry",
- "tracing-subscriber",
- "url",
- "urlencoding",
- "utoipa",
- "utoipa-swagger-ui",
- "uuid",
- "validator",
-]
-
-[[package]]
 name = "stellar-strkey"
 version = "0.0.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4439,7 +4445,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32497e9a4c7b38532efcdebeef879707aa9f794296a4f0244f6f69e9bc8574bd"
 dependencies = [
  "fastrand",
- "getrandom 0.3.4",
+ "getrandom 0.4.2",
  "once_cell",
  "rustix",
  "windows-sys 0.61.2",
