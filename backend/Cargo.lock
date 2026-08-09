@@ -659,6 +659,73 @@ dependencies = [
 ]
 
 [[package]]
+name = "chainpulse-backend"
+version = "0.2.0"
+dependencies = [
+ "aes-gcm",
+ "anyhow",
+ "argon2",
+ "async-graphql",
+ "async-graphql-axum",
+ "async-lock",
+ "async-trait",
+ "axum",
+ "base64 0.22.1",
+ "chrono",
+ "criterion",
+ "csv",
+ "dashmap",
+ "data-encoding",
+ "dotenvy",
+ "failsafe",
+ "futures",
+ "hex",
+ "hmac 0.13.0",
+ "http-body-util",
+ "ipnetwork",
+ "jsonwebtoken",
+ "lazy_static",
+ "lettre",
+ "log",
+ "ndarray",
+ "opentelemetry",
+ "opentelemetry-otlp",
+ "opentelemetry_sdk",
+ "prometheus",
+ "rand 0.10.2",
+ "redis",
+ "reqwest",
+ "rust_decimal",
+ "rust_xlsxwriter",
+ "serde",
+ "serde_json",
+ "sha2 0.11.0",
+ "sqlx",
+ "stellar-xdr",
+ "stellar_sdk",
+ "tempfile",
+ "thiserror 2.0.18",
+ "tokio",
+ "tokio-retry",
+ "tokio-tungstenite 0.30.0",
+ "toml 1.1.2+spec-1.1.0",
+ "tower 0.4.13",
+ "tower-http 0.7.0",
+ "tracing",
+ "tracing-appender",
+ "tracing-log",
+ "tracing-logstash",
+ "tracing-opentelemetry",
+ "tracing-subscriber",
+ "url",
+ "urlencoding",
+ "utoipa",
+ "utoipa-swagger-ui",
+ "uuid",
+ "validator",
+]
+
+[[package]]
 name = "chrono"
 version = "0.4.45"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3006,9 +3073,9 @@ dependencies = [
 
 [[package]]
 name = "prometheus"
-version = "0.13.4"
+version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3d33c28a30771f7f96db69893f78b857f7450d7e0237e9c8fc6427a81bae7ed1"
+checksum = "3ca5326d8d0b950a9acd87e6a3f94745394f62e4dae1b1ee22b2bc0c394af43a"
 dependencies = [
  "cfg-if",
  "fnv",
@@ -3016,7 +3083,7 @@ dependencies = [
  "memchr",
  "parking_lot",
  "protobuf",
- "thiserror 1.0.69",
+ "thiserror 2.0.18",
 ]
 
 [[package]]
@@ -3044,9 +3111,23 @@ dependencies = [
 
 [[package]]
 name = "protobuf"
-version = "2.28.0"
+version = "3.7.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "106dd99e98437432fed6519dedecfade6a06a73bb7b2a1e019fdd2bee5778d94"
+checksum = "d65a1d4ddae7d8b5de68153b48f6aa3bba8cb002b243dbdbc55a5afbc98f99f4"
+dependencies = [
+ "once_cell",
+ "protobuf-support",
+ "thiserror 1.0.69",
+]
+
+[[package]]
+name = "protobuf-support"
+version = "3.7.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3e36c2f31e0a47f9280fb347ef5e461ffcd2c52dd520d8e216b52f93b0b0d7d6"
+dependencies = [
+ "thiserror 1.0.69",
+]
 
 [[package]]
 name = "ptr_meta"
@@ -4189,73 +4270,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "stellar-insights-backend"
-version = "0.1.0"
-dependencies = [
- "aes-gcm",
- "anyhow",
- "argon2",
- "async-graphql",
- "async-graphql-axum",
- "async-lock",
- "async-trait",
- "axum",
- "base64 0.22.1",
- "chrono",
- "criterion",
- "csv",
- "dashmap",
- "data-encoding",
- "dotenvy",
- "failsafe",
- "futures",
- "hex",
- "hmac 0.13.0",
- "http-body-util",
- "ipnetwork",
- "jsonwebtoken",
- "lazy_static",
- "lettre",
- "log",
- "ndarray",
- "opentelemetry",
- "opentelemetry-otlp",
- "opentelemetry_sdk",
- "prometheus",
- "rand 0.10.2",
- "redis",
- "reqwest",
- "rust_decimal",
- "rust_xlsxwriter",
- "serde",
- "serde_json",
- "sha2 0.11.0",
- "sqlx",
- "stellar-xdr",
- "stellar_sdk",
- "tempfile",
- "thiserror 2.0.18",
- "tokio",
- "tokio-retry",
- "tokio-tungstenite 0.30.0",
- "toml 1.1.2+spec-1.1.0",
- "tower 0.4.13",
- "tower-http 0.7.0",
- "tracing",
- "tracing-appender",
- "tracing-log",
- "tracing-logstash",
- "tracing-opentelemetry",
- "tracing-subscriber",
- "url",
- "urlencoding",
- "utoipa",
- "utoipa-swagger-ui",
- "uuid",
- "validator",
-]
-
-[[package]]
 name = "stellar-strkey"
 version = "0.0.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4439,7 +4453,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32497e9a4c7b38532efcdebeef879707aa9f794296a4f0244f6f69e9bc8574bd"
 dependencies = [
  "fastrand",
- "getrandom 0.3.4",
+ "getrandom 0.4.2",
  "once_cell",
  "rustix",
  "windows-sys 0.61.2",
