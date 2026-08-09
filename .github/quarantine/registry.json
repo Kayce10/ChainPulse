@@ -1,0 +1,7 @@
+{
+  "_comment": "ChainPulse quarantine registry – tracks flaky tests that are isolated from the main CI gate.",
+  "_schema": "v1",
+  "updated_at": "2026-08-09T00:00:00Z",
+  "frontend": [],
+  "backend": []
+}

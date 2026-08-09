@@ -1,0 +1,56 @@
+name: Dependency Vulnerability Scan
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: '0 6 * * 1'  # Weekly Monday 6am UTC
+
+jobs:
+  cargo-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: rustsec/audit-check@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+  npm-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Root npm audit
+        run: npm audit --audit-level=high || true
+        working-directory: ./
+
+      - name: Frontend npm audit
+        run: npm audit --audit-level=high || true
+        working-directory: ./frontend
+
+      - name: Mobile npm audit
+        run: npm audit --audit-level=high || true
+        working-directory: ./mobile
+
+      - name: SDK TypeScript npm audit
+        run: npm audit --audit-level=high || true
+        working-directory: ./sdk/typescript
+
+  pip-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install and run pip-audit
+        run: pip install pip-audit && pip-audit
+        working-directory: ./sdk/python

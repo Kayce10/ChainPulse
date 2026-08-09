@@ -1,0 +1,20 @@
+# cargo-nextest configuration – ChainPulse backend
+# Used by the CI "Backend – shard" job.
+
+[profile.default]
+retries = 0
+fail-fast = false
+
+[profile.ci]
+# In CI we want to see all failures before exiting.
+fail-fast = false
+# Re-run a test once on failure to surface genuine flakiness.
+retries   = 1
+# Print the captured stdout/stderr for failed tests immediately.
+failure-output = "immediate-final"
+success-output = "never"
+# Cap test threads to avoid memory pressure on GitHub-hosted runners.
+test-threads = 4
+
+[profile.ci.junit]
+path = "target/nextest/ci/junit.xml"

@@ -1,0 +1,21 @@
+{
+  "name": "PayRaider",
+  "displayName": "PayRaider",
+  "expo": {
+    "name": "PayRaider",
+    "slug": "stellar-insights",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "ios": {
+      "bundleIdentifier": "com.stellarinsights.app",
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "com.stellarinsights.app",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      }
+    }
+  }
+}

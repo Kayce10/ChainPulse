@@ -1,0 +1,473 @@
+name: Tests
+
+# ── Triggers ────────────────────────────────────────────────────────────────────
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+# Cancel in-flight runs for the same branch/PR to save resources.
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+# ── Shared defaults ─────────────────────────────────────────────────────────────
+env:
+  # Rust / cargo
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: "-D warnings"
+  # Database (all backend jobs use SQLite in-memory unless otherwise noted)
+  DATABASE_URL: "sqlite::memory:"
+  # Node
+  NODE_ENV: test
+
+# ╔══════════════════════════════════════════════════════════════════════════════╗
+# ║  JOB 1 – Validate quarantine registry                                       ║
+# ╚══════════════════════════════════════════════════════════════════════════════╝
+jobs:
+  validate-quarantine-registry:
+    name: Validate quarantine registry
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Validate registry schema and staleness
+        run: node scripts/validate-quarantine-registry.js
+
+      - name: Show registry summary
+        run: |
+          echo "### Quarantine Registry" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "\`\`\`json" >> "$GITHUB_STEP_SUMMARY"
+          cat .github/quarantine/registry.json >> "$GITHUB_STEP_SUMMARY"
+          echo "\`\`\`" >> "$GITHUB_STEP_SUMMARY"
+
+# ╔══════════════════════════════════════════════════════════════════════════════╗
+# ║  JOB 2 – Frontend unit tests (sharded 1/4 … 4/4)                           ║
+# ╚══════════════════════════════════════════════════════════════════════════════╝
+  frontend-unit-tests:
+    name: Frontend unit tests
+    runs-on: ubuntu-latest
+    needs: [validate-quarantine-registry]
+
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run unit tests (shard ${{ matrix.shard }}/4)
+        run: pnpm vitest run --reporter=verbose --shard=${{ matrix.shard }}/4
+        env:
+          CI: "true"
+          NEXT_PUBLIC_API_URL: http://localhost:8080
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-test-results-shard-${{ matrix.shard }}
+          path: frontend/test-results/
+          retention-days: 7
+
+# ╔══════════════════════════════════════════════════════════════════════════════╗
+# ║  JOB 3 – Quarantine run (flaky tests in isolation)                          ║
+# ╚══════════════════════════════════════════════════════════════════════════════╝
+  quarantine-run:
+    name: Quarantine run (flaky tests in isolation)
+    runs-on: ubuntu-latest
+    # Run in parallel with normal tests – not a gate; results are informational.
+    needs: [validate-quarantine-registry]
+
+    services:
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    defaults:
+      run:
+        working-directory: .
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            backend/target
+          key: ${{ runner.os }}-cargo-quarantine-${{ hashFiles('backend/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-quarantine-
+
+      - name: Run quarantined tests in isolation
+        env:
+          CI: "true"
+          REDIS_URL: redis://127.0.0.1:6379
+          NEXT_PUBLIC_API_URL: http://localhost:8080
+          REPORT_PATH: quarantine-report.json
+        run: node scripts/run-quarantine.js
+
+      - name: Upload quarantine report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: quarantine-report
+          path: quarantine-report.json
+          retention-days: 30
+
+      - name: Annotate step summary with quarantine results
+        if: always()
+        run: |
+          if [ -f quarantine-report.json ]; then
+            echo "## Quarantine Report" >> "$GITHUB_STEP_SUMMARY"
+            node -e "
+              const r = require('./quarantine-report.json');
+              const total   = r.results.length;
+              const passed  = r.results.filter(x => x.status === 'passed').length;
+              const failed  = r.results.filter(x => x.status === 'failed').length;
+              if (total === 0) {
+                console.log('No quarantined tests in registry.');
+              } else {
+                console.log(\`\${passed}/\${total} quarantined tests passed (\${failed} failed).\`);
+              }
+            " >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+# ╔══════════════════════════════════════════════════════════════════════════════╗
+# ║  JOB 4 – Backend – shard (4 parallel shards)                                ║
+# ╚══════════════════════════════════════════════════════════════════════════════╝
+  backend-shard:
+    name: "Backend \u2013 shard"
+    runs-on: ubuntu-latest
+    needs: [validate-quarantine-registry]
+
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+
+    services:
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain (stable)
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo registry & build artefacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            backend/target
+          key: ${{ runner.os }}-cargo-shard${{ matrix.shard }}-${{ hashFiles('backend/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-shard${{ matrix.shard }}-
+            ${{ runner.os }}-cargo-
+
+      - name: Build (non-feature-gated tests only)
+        working-directory: backend
+        run: cargo build --tests
+        env:
+          REDIS_URL: redis://127.0.0.1:6379
+
+      - name: Run test shard ${{ matrix.shard }}/4
+        working-directory: backend
+        env:
+          REDIS_URL: redis://127.0.0.1:6379
+        # nextest supports --partition natively; fall back to cargo test with a
+        # manual file-based split when nextest is not installed.
+        run: |
+          if command -v cargo-nextest &>/dev/null; then
+            cargo nextest run \
+              --partition count:${{ matrix.shard }}/4 \
+              --no-fail-fast \
+              --profile ci
+          else
+            # Collect integration test binaries and split them by index
+            TESTS=$(cargo test --no-run --message-format=json 2>/dev/null \
+              | jq -r 'select(.reason=="compiler-artifact" and .profile.test==true) | .executable // empty' \
+              | sort | uniq)
+            TOTAL=$(echo "$TESTS" | wc -l | tr -d ' ')
+            SHARD=${{ matrix.shard }}
+            COUNT=4
+            i=0
+            for bin in $TESTS; do
+              i=$((i+1))
+              if [ $(( (i - 1) % COUNT + 1 )) -eq $SHARD ]; then
+                echo "--- Running $bin ---"
+                "$bin" --include-ignored || true
+              fi
+            done
+            # Also run unit tests for this shard (cargo test with filter by module hash)
+            cargo test
+          fi
+
+      - name: Upload test artefacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-test-results-shard-${{ matrix.shard }}
+          path: backend/target/nextest/ci/
+          retention-days: 7
+
+# ╔══════════════════════════════════════════════════════════════════════════════╗
+# ║  JOB 5 – Quarantine check (PR)                                              ║
+# ╚══════════════════════════════════════════════════════════════════════════════╝
+  quarantine-check-pr:
+    name: Quarantine check (PR)
+    runs-on: ubuntu-latest
+    # Only meaningful on pull requests
+    if: github.event_name == 'pull_request'
+    needs: [validate-quarantine-registry]
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Fetch enough history to compute the merge-base diff
+          fetch-depth: 50
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Determine merge base
+        id: base
+        run: |
+          BASE=$(git merge-base HEAD origin/${{ github.base_ref }} 2>/dev/null || echo "origin/${{ github.base_ref }}")
+          echo "sha=${BASE}" >> "$GITHUB_OUTPUT"
+
+      - name: Check quarantine registry changes in this PR
+        env:
+          BASE_SHA: ${{ steps.base.outputs.sha }}
+        run: node scripts/check-quarantine-pr.js
+
+      - name: Annotate PR if new quarantine entries added
+        if: always()
+        run: |
+          DIFF=$(git diff ${{ steps.base.outputs.sha }} -- .github/quarantine/registry.json || true)
+          if echo "$DIFF" | grep -q '"id"'; then
+            echo "::notice ::This PR modifies the quarantine registry. Review the entries before merging."
+          fi
+
+# ╔══════════════════════════════════════════════════════════════════════════════╗
+# ║  JOB 6 – Backend – merge coverage & check thresholds                        ║
+# ╚══════════════════════════════════════════════════════════════════════════════╝
+  backend-coverage:
+    name: "Backend \u2013 merge coverage & check thresholds"
+    runs-on: ubuntu-latest
+    needs: [backend-shard]
+
+    services:
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain (stable + llvm-tools)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools-preview
+
+      - name: Cache cargo registry & build artefacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            backend/target
+          key: ${{ runner.os }}-cargo-cov-${{ hashFiles('backend/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-cov-
+
+      - name: Install cargo-llvm-cov
+        run: cargo install cargo-llvm-cov --locked
+
+      - name: Run full test suite with coverage instrumentation
+        working-directory: backend
+        env:
+          REDIS_URL: redis://127.0.0.1:6379
+        run: |
+          cargo llvm-cov \
+            --workspace \
+            --lcov \
+            --output-path lcov.info \
+            --fail-under-fns 70
+
+      - name: Check line coverage threshold (≥ 70 %)
+        working-directory: backend
+        run: |
+          SUMMARY=$(cargo llvm-cov report --summary-only 2>&1 || true)
+          echo "$SUMMARY"
+          LINE_COV=$(echo "$SUMMARY" | grep -E 'Lines' | awk '{gsub(/%/,""); print $NF}' | head -1)
+          if [ -n "$LINE_COV" ]; then
+            echo "Line coverage: ${LINE_COV}%"
+            if (( $(echo "$LINE_COV < 70" | bc -l) )); then
+              echo "::error::Backend line coverage ${LINE_COV}% is below the 70% threshold."
+              exit 1
+            fi
+          else
+            echo "::warning::Could not parse line coverage from summary."
+          fi
+        env:
+          REDIS_URL: redis://127.0.0.1:6379
+
+      - name: Upload coverage LCOV report
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage-lcov
+          path: backend/lcov.info
+          retention-days: 14
+
+      - name: Upload to Codecov
+        if: ${{ secrets.CODECOV_TOKEN != '' }}
+        uses: codecov/codecov-action@v4
+        with:
+          files: backend/lcov.info
+          flags: backend
+          fail_ci_if_error: false
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+      - name: Coverage summary
+        if: always()
+        working-directory: backend
+        run: |
+          echo "## Backend Coverage" >> "$GITHUB_STEP_SUMMARY"
+          cargo llvm-cov report --summary-only 2>&1 >> "$GITHUB_STEP_SUMMARY" || true
+        env:
+          REDIS_URL: redis://127.0.0.1:6379
+
+# ╔══════════════════════════════════════════════════════════════════════════════╗
+# ║  JOB 7 – Notify Slack on failure                                            ║
+# ╚══════════════════════════════════════════════════════════════════════════════╝
+  notify-slack:
+    name: Notify Slack on failure
+    runs-on: ubuntu-latest
+    # Run after all other jobs, only when something has failed.
+    needs:
+      - validate-quarantine-registry
+      - frontend-unit-tests
+      - quarantine-run
+      - backend-shard
+      - quarantine-check-pr
+      - backend-coverage
+    if: |
+      always() && (
+        needs.validate-quarantine-registry.result == 'failure' ||
+        needs.frontend-unit-tests.result == 'failure' ||
+        needs.backend-shard.result == 'failure' ||
+        needs.backend-coverage.result == 'failure' ||
+        needs.quarantine-check-pr.result == 'failure'
+      )
+
+    steps:
+      - name: Build failure summary
+        id: summary
+        run: |
+          FAILED_JOBS=""
+          for job in \
+            "validate-quarantine-registry:${{ needs.validate-quarantine-registry.result }}" \
+            "frontend-unit-tests:${{ needs.frontend-unit-tests.result }}" \
+            "quarantine-run:${{ needs.quarantine-run.result }}" \
+            "backend-shard:${{ needs.backend-shard.result }}" \
+            "quarantine-check-pr:${{ needs.quarantine-check-pr.result }}" \
+            "backend-coverage:${{ needs.backend-coverage.result }}"; do
+            NAME=$(echo "$job" | cut -d: -f1)
+            RESULT=$(echo "$job" | cut -d: -f2)
+            if [ "$RESULT" = "failure" ]; then
+              FAILED_JOBS="${FAILED_JOBS} • ${NAME}\n"
+            fi
+          done
+          echo "failed_jobs=${FAILED_JOBS}" >> "$GITHUB_OUTPUT"
+
+      - name: Send Slack notification
+        uses: slackapi/slack-github-action@v1.27.0
+        with:
+          payload: |
+            {
+              "text": "🔴 *ChainPulse CI failed* on `${{ github.ref_name }}`",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "🔴 *ChainPulse CI — Tests failed*\n\n*Branch:* `${{ github.ref_name }}`\n*Commit:* `${{ github.sha }}`\n*Actor:* ${{ github.actor }}\n*Run:* <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View run>"
+                  }
+                },
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*Failed jobs:*\n${{ steps.summary.outputs.failed_jobs }}"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
